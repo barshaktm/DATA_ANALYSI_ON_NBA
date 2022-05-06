@@ -1,0 +1,401 @@
+---
+title: "NBA Reproducible Data Analysis Project"
+author: "Barsha Paudel (u3228464)"
+date: "6/05/2022"
+---
+
+## Introduction
+
+National Basketball Association(NBA) is professional basketball league which is in North America. It is one of the major professional sports leagues in US and Canada which is composed of 30 teams out of which 29 is in United States and 1 in Canada.In 1949, August 3 the name of NBA was changed to National Basketball Association from the Basketball Association of America (BAA) after it got merged with the National Basketball League (NBL).The regular season of NBA runs from October to April with each teams playing 82 games. Now as of 2020, the player from NBA team has the world's best paid athletes with average annual salary per player.
+
+In this project I am working as a data analyst with the Chicago Bulls competing in National Basketball Association. This team's budget for player contracts next season is $118 million. So the major purpose behind this data analysis is to find the best five starting players (one from each position) that the Chicago team can buy for the next season. We have to find the best five players making sure that the estimated budget is not just used for the 5 player because we still need to fill a full team roster, so have to just focus on finding five starting players here. I am allowed to choose the players that were already playing for Chicago Bulls in 2018-19, but just need to prove that they are worth it.
+
+This reproducible data analysis on NBA will help the Chicago Bulls in finding good quality players with good points with deserving salary for the next season to help improve the team. The matrices I will use to evaluate the players by looking at the performances of the players from the available dataset. I will be evaluating the players on the basis of certain criteria mentioned below in the data modelling results and players recommendation part.The importance of this data analysis in finding the best five starting players is to make a good players team through which a team can focus on achieving a common goal. A good starting players can always focus on attracting defenders towards him and then they will always try to pass the ball to the open teammate.And the good players will always leads to the wins.Thus it is important to find the best starting players for NBA next season to better the performance of the whole team and to gain the success. 
+
+
+### Load required packages
+
+```{r packages, message=FALSE}
+library(tidyverse)
+library(readr)
+library(ggplot2)
+library(ggcorrplot)
+library(reshape2)
+library(broom)
+```
+
+### Data source
+
+The data used in this document contains two datasets of National Basketball Association(NBA) and they are total statistics for individual NBA players during the 2018-19 season and the salary for individual players during the 2018-19 NBA season. We are using the data which has been sourced from: 
+2018-19_nba_player-statistics.csv :  sourced from basketball-reference.com  2018-19_nba_player-salaries.csv :  sourced from hoopshype.com/salaries
+
+**Description of the datasets**
+
+2018-19_nba_player-statistics.csv : The variables consists of:
+player_name : Player Name
+Pos :  (PG = point guard, SG = shooting guard, SF = small forward, PF = power forward, C = center) 
+Age : Age of Player at the start of February 1st of that season.
+Tm : Team
+G : Games
+GS : Games Started
+MP : Minutes Played
+FG : Field Goals
+FGA : Field Goal Attempts
+FG% : Field Goal Percentage
+3P : 3-Point Field Goals
+3PA : 3-Point Field Goal Attempts
+3P% : FG% on 3-Pt FGAs
+2P : 2-Point Field Goals
+2PA : 2-point Field Goal Attempts
+2P% : FG% on 2-Pt FGAs
+eFG% : Effective Field Goal Percentage
+FT : Free Throws
+FTA : Free Throw Attempts
+FT% : Free Throw Percentage
+ORB : Offensive Rebounds
+DRB : Defensive Rebounds
+TRB : Total Rebounds
+AST : Assists
+STL : Steals
+BLK : Blocks
+TOV : Turnovers
+PF : Personal Fouls
+PTS : Points
+
+2018-19_nba_player-salaries.csv: The variables consists of:
+player_id : unique player identification number
+player_name : player name
+salary : year salary in $USD
+
+## Read data
+
+Reading the data file using the `read_csv()` function from the `readr` package. 
+
+```{r read_data, message=FALSE} 
+
+salaries <- read_csv("2018-19_nba_player-salaries.csv")
+statistics <- read_csv("2018-19_nba_player-statistics.csv")
+```
+
+### Checking the data
+
+Checking the structure of the data file using `str()`:
+
+```{r structure}
+str(salaries)
+str(statistics)
+```
+
+Checking the first 6 rows of the data file using `head()`
+
+```{r head}
+head(salaries)
+head(statistics)
+```
+
+Checking the last 6 rows of the data file using `tail()`
+
+```{r tail}
+tail(salaries)
+tail(statistics)
+```
+
+Checking for missing values using:
+
+```{r na}
+sum(is.na(salaries))
+sum(is.na(statistics))
+```
+
+Comments: There is no missing values on salaries datasets but there is 117 missing values in statistics datasets
+
+### Visualizing missing values
+
+```{r missing values}
+naniar::vis_miss(statistics)
+
+```
+
+Comments:looking at the graph we can interpret that the columns having
+a missing values are 3P(6.64%), 2P(2.12)%, and FT(6.07)%. There are just 0.6% of missing values in whole datasets which are very less so we will clean the datasets and make it ready for analysis by dropping missing values.
+
+Dropping mising values:
+
+```{r }
+player_statistics <- drop_na(statistics) #storing cleaned datasets in player_statistics
+
+```
+
+**Merging Datasets:**
+
+Merging salaries dataset and player statistics dataset by player name using merge() function
+
+```{r}
+merged_data <- merge(salaries, player_statistics, by = "player_name", all = TRUE)
+```
+
+Checking the missing values of merged dataset
+
+```{r}
+sum(is.na(merged_data))
+```
+
+Dropping the missing values
+```{r}
+merged_data <- drop_na(merged_data)
+```
+
+Removing duplicates of merged data:
+
+We can see many duplicates in the merged datasets so removing all those duplicates using duplicated function
+
+```{r}
+players_cleaned_data <- merged_data[!duplicated(merged_data$player_name, merged_data$player_id), ] 
+```
+
+
+## Exploratory data analysis
+
+**What is the salary distribution of the players?**
+
+Salary distribution using histogram
+```{r}
+ggplot(players_cleaned_data, aes(x = salary)) +                        
+  geom_histogram(col = "black", fill = "tomato4")+
+  xlab("Salary")+
+  ggtitle("Salary Distribution")
+
+```
+
+Comments:From the plot we can interpret that the salary distribution of the players are positively skewed towards right and there are very few players whose earnings is more than a million and most of the players salary is less than a million.
+
+**What is the age distribution of the players?**
+
+Age distribution using histogram
+```{r}
+ggplot(players_cleaned_data, aes(Age)) + 
+  geom_histogram(col = "black", fill = "blue")+
+  xlab("Age")+
+  ggtitle("Age Distribution")
+```
+
+Comments: From the plot we can interpret that the age distribution of the payers is between 20-40 years, most of the players age group is 20-30,and very less players are above 35+ age.
+
+**How is age and salary of players related to each other?**
+
+Displaying the relationship between Age and Salary
+```{r}
+ggplot(players_cleaned_data, aes(Age, salary)) + 
+    geom_point(aes(colour = factor(Age)))
+```
+
+Comments: From the plot we can interpret that the players who are at their early 20s earns less salary comparing to the earnings of the players who are at the age of 25-35.There are very less players at the age of 40 and earns less as well.
+ 
+**How does players positions and  points affects the players earning?**
+```{r}
+ggplot(data = players_cleaned_data, aes(x= Pos, y = salary, color= Pos))+
+  geom_boxplot()+
+  theme_classic()
+```
+
+Comments: From the bar plot we can clearly visualize that players having a positions like Center (C),power forward (PF),Point guard (PG), Shooting guard (SG)and small Forward(SF) earns more than others.We can also interpret that the relationship between POS and salary has positively skewed towards right.
+
+```{r}
+ggplot(data = players_cleaned_data, aes(x = PTS, y = salary, color = Pos)) +
+  geom_point()+
+  ggtitle("Relationship between player points and salary")
+```
+
+Comments: From the plot we can interpret that the player points and salary has a positive relationship with each other. The increase in players points will increase the players salary and vice-versa.
+
+**Does the minutes played by a players influence players points?**
+```{r}
+ggplot(data = players_cleaned_data, aes(x = MP, y = PTS)) +
+  geom_point() +
+  ggtitle("Relationship between minutes played and points") +geom_smooth(method = lm)
+```
+
+Comments: Looking at the plot we can interpret that the more minutes given to the players to play will help increasing in players points. Therefore there is a positive relationship between minutes played and players points.
+
+## Correlation Heatmap
+
+Now checking the relationship between all numeric variables, therefore removing non-numeric variables from the players_cleaned dataset
+```{r}
+numeric_variables <- select(players_cleaned_data,-c(player_name, Pos, Tm))
+
+
+round(x = cor(numeric_variables), digits = 2)
+
+ggcorrplot(cor(numeric_variables)) +
+  ggtitle("Correlation Heatmap")
+```
+
+Comments:From the correlation heat map we can clearly identify the relationship between the variables. Lighter color in the heat map represents weak relationship among the variables and darker color in the heat map represents strong relationship among the variables.
+
+## Data modelling and Results
+
+In this part we have to select the variables to be used for the modelling the data. We are conducting the linear regression model players Points (PTS) based on Position,AGE, games, games started, minutes played, field goals, field goals attempts, free throws, free throws attempts, defensive rebounds, total rebounds, turnovers
+
+
+```{r}
+fit <- lm(PTS~ Pos+ Age+ G+ GS+ MP+ FG+ FGA+ FT+ FTA+ DRB+ TRB+ TOV, data = players_cleaned_data)
+tidy(fit, conf.int = TRUE)
+summary(fit)
+```
+
+Comments: Looking at the summary of this model we can interpret that AGE, minutes played, field goals, field goals attempts, free throws,and defensive rebounds will contribute to a player having a higher points. The r-squared values is 0.9977 thus we can say that the players can have high points if the player has a better statistics.
+
+## Features Selection
+
+Now we will just deal with this variables like: Salary, Players_name, PTS, Pos, MP, G . We have chosen this variable because looking at the data visualization part of this project we can clearly interpret that these variables can be a best players determining variables as all of these variables have a positive relationship with each other.That means increase in minutes played (MP) by one unit will increase the points (PTS) by one or more units. So, i think being based on these variables i will be able to find and recommend the best starting players for NBA for next season.
+
+```{r}
+new_data <- select(players_cleaned_data, c(salary, player_name, PTS,Pos, MP, G))
+```
+
+arranging the players point from highest to lowest
+```{r}
+high_low_data <- new_data%>%
+  arrange(desc(PTS))
+```
+
+checking the summary of PTS, salary, MP and G
+```{r}
+summary(high_low_data$PTS)
+summary(high_low_data$salary)
+summary(high_low_data$MP)
+summary(high_low_data$G)
+```
+
+## Player Recommendation 
+
+Here we are finding the top five players by positions using filter function. We will set the criteria being based on the summary of the chosen variables printed above. In most of the criteria we will take median and maximum values from the summary of the chosen variables and will filter the data accordingly which will help us finding the top five players by positions.It is important to set the criteria because through that we will be able to find out the best players with more points achieved with more games and minutes played. Depending on the criteria we will be able to select the five best starting players who can actually improve in shooting percentages that can help make his/her team win more games.  
+
+Criteria are as follows:
+minimum of 421 points achieved
+salary should be between 3 million to 20 million
+minimum of 1071 minutes should be played
+minumum of 54 games played
+
+**Finding the players based on the conditions from five different positions**
+
+**Point_Guard** 
+```{r}
+position_PG <- high_low_data %>%
+  filter(Pos == "PG") %>% 
+  filter(G >=54, 
+         MP>=1071, 
+         salary>=3258539, 
+         salary<= 20000000, 
+         PTS>=421)
+
+position_PG
+```
+Comments:The first player to recommend to Chicago Bulls competing to NBA having the position of Point Guard(PG) is Kemba Walker with the 12 million salary, 2102 Points(PTS), 2863 Minutes Played(MP) and 82 Games.
+
+**Shooting_Guard**
+```{r}
+position_SG <- high_low_data %>%
+  filter(Pos == "SG") %>% 
+  filter(G >=54, 
+         MP>=1071, 
+         salary>=3258539, 
+         salary<= 20000000, 
+         PTS>=421)
+
+position_SG
+```
+Comments:The second player to recommend to Chicago Bulls competing to NBA having the position of Shooting Guard(SG) is Devin Booker with the 3.3 million salary, 1700 Points(PTS), 2242 Minutes Played(MP) and 64 Games.
+
+**Small Forward**
+```{r}
+position_SF <- high_low_data %>%
+  filter(Pos == "SF") %>% 
+  filter(G >=54,
+         MP>=1071, 
+         salary>=3258539, 
+         salary<= 20000000,
+         PTS>=421)
+
+position_SF
+```
+Comments:The third player to recommend to Chicago Bulls competing to NBA having the position of Small Forward(SF) is Bojan Bogdanovic with the 10.5 million salary, 1454 Points(PTS), 2573 Minutes Played(MP) and 81 Games.
+
+**Power Forward**
+```{r}
+position_PF <- high_low_data %>%
+  filter(Pos == "PF") %>% 
+  filter(G >=54, 
+         MP>=1071, 
+         salary>=3258539, 
+         salary<= 20000000, 
+         PTS>=421)
+
+position_PF
+```
+Comments:The fourth player to recommend to Chicago Bulls competing to NBA having the position of Power Forward (PF) is Tobia Harris with the 14.8 million salary, 1644 Points(PTS), 2847 Minutes Played(MP) and 82 Games.
+
+**Centre**
+```{r}
+position_C <- high_low_data %>%
+  filter(Pos == "C") %>% 
+  filter(G >=54,
+         MP>=1071, 
+         salary>=3258539, 
+         salary<= 20000000, PTS>=421)
+
+position_C
+```
+Comments:The fifth player to recommend to Chicago Bulls competing to NBA having the position of Centre (C) is Karl-Anthony Towns with the 7.8 million salary, 1880 Points(PTS), 2545 Minutes Played(MP) and 77 Games.
+
+**Top five players**
+
+Therefore the top five starting players recommendation to Chicago Bulls from different positions are:
+```{r}
+top_five_players <- list(
+  point_guard =  position_PG[1,],
+  shooting_guard =  position_SG[1,],
+  small_forward = position_SF[1,],
+  power_forward = position_PF[1,],
+  centre =  position_C[1,])
+
+top_five_players
+```
+
+Comments: The top five best starting players for NBA are Kemba Walker,Devin Booker,Bojan Bogdanovic,Tobia Harris and Karl-Anthony Towns. They are the best recommendation from me because they have the capacity to play more minutes and more games to achieve more points.Also,these players are best recommendation because they have a good experience about the game as they are more skilled, knowledgeable, they know their role,and they have better understanding about the game through which they will be able to be more focused and successful to give 100% effort to win the game. 
+
+Finding the total salary of top five recommended players
+```{r}
+sum_of_top_five_players_salary <- sum(position_PG$salary[1],
+    position_SG$salary[1],
+    position_SF$salary[1],
+    position_PF$salary[1],
+    position_C$salary[1])
+
+print(sum_of_top_five_players_salary)
+```
+
+Comments: The summation of total salary of the recommended top five starting players is 48453800 which is less than the estimated budget of 118000000.Being the starting players the salary for them will be high comparing to the other players. So the remaining budget can be used to full the team roster. I think these recommended players can be the best starting players who will be quality players and improves the team for the upcoming season.
+
+## Summary 
+
+The main purpose of this project is to find out the best five starting players (one from each position) that the Chicago team can afford for the next season.So,for the data analysis we have used the data of total statistics and salary for individual NBA players during the 2018-19 season.In this project we have used the exploratory data analysis to find the distribution of age and salary, and the relationship between other variables like age,salary,players positions,player points, and minutes played for the deeper understanding of the variables about how they are correlated, their strength and influence.To find the best five starting players we have used a certain conditions and criteria being based on the summary of the chosen variables like PTS(points), MP(minutes played), Salary, and G(games). Criteria is using a filter function to find the players with minimum of 421 points,salary between 3 million to 20 million, minimum of 1071 minutes played and minimum of 54 games played.Being based on the criteria we have found the top five best starting players and they are Kemba Walker,Devin Booker,Bojan Bogdanovic,Tobia Harris and Karl-Anthony Towns.And the sum of the salary of these players are less than the estimated budget which means the remaining budget can be used to fill the full team requirement roster. 
+
+## References
+
+tpall.github.io. (n.d.). Reproducible Data Analysis in R. [online] Available at: https://tpall.github.io/learn-r/ [Accessed 3 May 2022].
+
+DMaya2 (2021). Reproducible-Data-Analysis-Project. [online] GitHub. Available at: https://github.com/DMaya2/Reproducible-Data-Analysis-Project.
+
+DataCamp Community. (2019). How to Make a Histogram with Basic R. [online] Available at: https://www.datacamp.com/community/tutorials/make-histogram-basic-r.
+
+GeeksforGeeks. (2020). Scatter plots in R Language. [online] Available at: https://www.geeksforgeeks.org/scatter-plots-in-r-language/ [Accessed 3 May 2022].
+
+DataMentor. (2017). Bar Plot in R Using barplot() Function. [online] Available at: https://www.datamentor.io/r-programming/bar-plot/.
+
+EDUCBA. (2022). Boxplot in R | Example | How to Create Boxplot in R? [online] Available at: https://www.educba.com/boxplot-in-r/ [Accessed 3 May 2022].
+
+
+
+
+
